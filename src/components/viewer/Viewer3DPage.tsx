@@ -87,6 +87,7 @@ export default function Viewer3DPage({ url, menuName, backUrl }: Viewer3DPagePro
         splatAlphaRemovalThreshold: 5,
         showLoadingUI: false,
         progressiveLoad: false,
+        format: GS.SceneFormat.Ply,
       });
 
       viewer.start();

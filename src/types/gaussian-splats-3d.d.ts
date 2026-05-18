@@ -31,14 +31,18 @@ declare module "@mkkellogg/gaussian-splats-3d" {
     webXRSessionInit?: WebXRSessionInit;
   }
 
-  // 0 = Splat, 1 = KSplat, 2 = Ply — auto-detected from URL extension if omitted
-  type SceneFormat = 0 | 1 | 2;
+  // Runtime constant exported by the library
+  const SceneFormat: {
+    Splat: 0;
+    KSplat: 1;
+    Ply: 2;
+  };
 
   interface AddSplatSceneOptions {
     splatAlphaRemovalThreshold?: number;
     showLoadingUI?: boolean;
     progressiveLoad?: boolean;
-    format?: SceneFormat;
+    format?: 0 | 1 | 2;
     onProgress?: (progress: number) => void;
   }
 
