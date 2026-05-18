@@ -2,7 +2,7 @@
  * Data access layer — swap USE_DUMMY ke false saat Supabase sudah siap.
  */
 
-import type { Cafe, Menu } from "@/types";
+import type { Cafe, Menu, AnalyticsLog } from "@/types";
 import { DUMMY_CAFE, DUMMY_MENUS } from "./dummy-data";
 
 const USE_DUMMY = true; // ← ganti false saat Supabase ready
@@ -32,7 +32,7 @@ export async function getMenusByCafeId(cafeId: string): Promise<Menu[]> {
 }
 
 export async function logEvent(
-  payload: { cafe_id: string; menu_id: string; event_type: string; duration: number }
+  payload: Pick<AnalyticsLog, "cafe_id" | "menu_id" | "event_type" | "duration">
 ): Promise<void> {
   if (USE_DUMMY) return;
   const { logEvent: fn } = await getSupabaseFns();
