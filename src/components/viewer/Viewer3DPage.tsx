@@ -35,21 +35,29 @@ export default function Viewer3DPage({ url, menuName, backUrl }: Viewer3DPagePro
       const contentLength = response.headers.get("content-length");
       const total = contentLength ? parseInt(contentLength, 10) : 0;
       const reader = response.body!.getReader();
-      const chunks: Uint8Array<ArrayBuffer>[] = [];
+      const rawChunks: Uint8Array[] = [];
       let loaded = 0;
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        chunks.push(value);
+        rawChunks.push(new Uint8Array(value.buffer.slice(0)));
         loaded += value.byteLength;
         if (total > 0) {
           setProgress(Math.min(95, Math.round((loaded / total) * 100)));
         }
       }
 
+      // Combine chunks into a single ArrayBuffer so Blob constructor is happy.
+      const combined = new Uint8Array(loaded);
+      let offset = 0;
+      for (const chunk of rawChunks) {
+        combined.set(chunk, offset);
+        offset += chunk.byteLength;
+      }
+
       // Step 2: Create a same-origin Blob URL so the GS worker can access it.
-      const blob = new Blob(chunks, { type: "application/octet-stream" });
+      const blob = new Blob([combined.buffer], { type: "application/octet-stream" });
       const blobUrl = URL.createObjectURL(blob);
       blobUrlRef.current = blobUrl;
 
