@@ -113,29 +113,27 @@ export default function ARSession({ url, menuName, onClose }: ARSessionProps) {
     };
   }, [url]);
 
-  // Trigger AR session directly — gives us proper error handling
-  const triggerAR = useCallback(async () => {
-    try {
-      const session = await navigator.xr!.requestSession("immersive-ar", {
-        optionalFeatures: ["hit-test"],
-      });
-      // Hand the session to Three.js XR renderer
-      if (viewerRef.current?.renderer?.xr) {
-        await viewerRef.current.renderer.xr.setSession(session);
-      }
-    } catch (err) {
+  // Click the library's hidden ARButton (correct session lifecycle),
+  // but intercept unhandled rejections so we can show a specific error.
+  const triggerAR = useCallback(() => {
+    const btn = containerRef.current?.querySelector(
+      "#ARButton"
+    ) as HTMLButtonElement | null;
+    if (!btn) return;
+
+    const handleRejection = (e: PromiseRejectionEvent) => {
+      const err = e.reason;
       if (err instanceof DOMException && err.name === "NotAllowedError") {
-        const msg = (err.message ?? "").toLowerCase();
-        if (msg.includes("overlay") || msg.includes("bubble") || msg.includes("permission")) {
-          setSessionState("overlay_blocked");
-        } else {
-          setSessionState("overlay_blocked"); // default: assume overlay
-        }
-      } else {
-        console.error("[ARSession] triggerAR", err);
-        setSessionState("error");
+        e.preventDefault();
+        setSessionState("overlay_blocked");
       }
-    }
+      window.removeEventListener("unhandledrejection", handleRejection);
+    };
+    window.addEventListener("unhandledrejection", handleRejection);
+    // Clean up if nothing goes wrong within 5s
+    setTimeout(() => window.removeEventListener("unhandledrejection", handleRejection), 5000);
+
+    btn.click();
   }, []);
 
   const retryAR = useCallback(() => {
