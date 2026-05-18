@@ -35,7 +35,7 @@ export default function Viewer3DPage({ url, menuName, backUrl }: Viewer3DPagePro
       const contentLength = response.headers.get("content-length");
       const total = contentLength ? parseInt(contentLength, 10) : 0;
       const reader = response.body!.getReader();
-      const chunks: Uint8Array[] = [];
+      const chunks: Uint8Array<ArrayBuffer>[] = [];
       let loaded = 0;
 
       while (true) {
