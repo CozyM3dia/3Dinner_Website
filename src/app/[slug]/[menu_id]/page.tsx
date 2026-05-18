@@ -1,10 +1,9 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { getCafeBySlug, getMenuById } from "@/lib/data";
+import { getCafeBySlug, getMenuById, logEvent } from "@/lib/data";
 import DetailHeader from "@/components/DetailHeader";
 import ARButton from "@/components/ARButton";
 import OrderButton from "@/components/OrderButton";
-import { logEvent } from "@/lib/supabase";
 import { Tag, Box } from "lucide-react";
 
 interface PageProps {

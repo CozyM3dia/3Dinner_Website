@@ -31,6 +31,14 @@ export async function getMenusByCafeId(cafeId: string): Promise<Menu[]> {
   return fn(cafeId);
 }
 
+export async function logEvent(
+  payload: { cafe_id: string; menu_id: string; event_type: string; duration: number }
+): Promise<void> {
+  if (USE_DUMMY) return;
+  const { logEvent: fn } = await getSupabaseFns();
+  fn(payload).catch(() => {/* fire and forget */});
+}
+
 export async function getMenuById(
   cafeId: string,
   menuId: string
