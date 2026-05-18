@@ -19,6 +19,7 @@ export default function Viewer3DPage({ url, menuName, backUrl }: Viewer3DPagePro
   const blobUrlRef = useRef<string | null>(null);
   const [state, setState] = useState<ViewerState>("loading");
   const [progress, setProgress] = useState(0);
+  const [errorMsg, setErrorMsg] = useState("");
 
   const initViewer = useCallback(async () => {
     if (!containerRef.current) return;
@@ -97,6 +98,7 @@ export default function Viewer3DPage({ url, menuName, backUrl }: Viewer3DPagePro
       setState("ready");
     } catch (err) {
       console.error("[Viewer3DPage]", err);
+      setErrorMsg(err instanceof Error ? err.message : String(err));
       setState("error");
     }
   }, [url]);
@@ -189,6 +191,11 @@ export default function Viewer3DPage({ url, menuName, backUrl }: Viewer3DPagePro
             <p className="text-xs text-center" style={{ color: "#C4956A" }}>
               Cek koneksi internet & coba lagi
             </p>
+            {errorMsg && (
+              <p className="text-xs text-center px-4 font-mono break-all" style={{ color: "#8B5E3C" }}>
+                {errorMsg}
+              </p>
+            )}
             <button
               type="button"
               onClick={initViewer}
