@@ -82,9 +82,10 @@ export default function ARSession({ url, menuName, onClose }: ARSessionProps) {
 
       // ── 4. Load splat scene ──────────────────────────────────────────
       await viewer.addSplatScene(url, {
-        splatAlphaRemovalThreshold: 1,
+        splatAlphaRemovalThreshold: 5,
         showLoadingUI: false,
-        progressiveLoad: true,
+        progressiveLoad: false,
+        format: GS.SceneFormat.Ply,
         onProgress: (pct: number) => {
           if (mounted) setProgress(Math.min(100, Math.round(pct)));
         },
