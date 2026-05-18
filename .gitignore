@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Claude Code internal files
+.claude/
+
+# Raw 3D source models (only public/models/ is needed)
+/3dmodel/
