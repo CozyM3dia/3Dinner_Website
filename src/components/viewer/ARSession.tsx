@@ -254,6 +254,14 @@ export default function ARSession({ url, menuName, onClose }: ARSessionProps) {
                 </ul>
               </div>
             </div>
+            {/* Deep link to Android "Display over other apps" settings */}
+            <a
+              href="intent:#Intent;action=android.settings.action.MANAGE_OVERLAY_PERMISSION;end"
+              className="w-full py-3 rounded-2xl text-sm font-semibold flex items-center justify-center gap-2 mb-3"
+              style={{ background: "#FEF3E8", color: "#C4956A", border: "1px solid #E8D5C0" }}
+            >
+              Buka Pengaturan Android →
+            </a>
             <div className="flex gap-3">
               <button onClick={onClose}
                 className="flex-1 py-3 rounded-2xl text-sm font-semibold"
