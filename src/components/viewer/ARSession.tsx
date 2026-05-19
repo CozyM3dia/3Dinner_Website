@@ -142,8 +142,10 @@ export default function ARSession({ url, menuName, onClose }: ARSessionProps) {
       console.error("[ARSession] triggerAR error:", err);
       if (err instanceof DOMException && err.name === "NotAllowedError") {
         setSessionState("overlay_blocked");
+      } else if (err instanceof DOMException && err.name === "NotSupportedError") {
+        setSessionState("unsupported");
       } else {
-        setSessionState("overlay_blocked"); // assume overlay for any AR failure
+        setSessionState("error");
       }
     }
   }, []);
