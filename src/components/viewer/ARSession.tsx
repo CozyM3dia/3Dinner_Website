@@ -128,9 +128,15 @@ export default function ARSession({ url, menuName, onClose }: ARSessionProps) {
     }, 6000);
 
     try {
-      const session = await navigator.xr.requestSession("immersive-ar", {
-        optionalFeatures: ["hit-test"],
-      });
+      let session;
+      try {
+        session = await navigator.xr.requestSession("immersive-ar", {
+          optionalFeatures: ["hit-test"],
+        });
+      } catch (firstErr) {
+        console.warn("[ARSession] Failed with optionalFeatures, retrying without...", firstErr);
+        session = await navigator.xr.requestSession("immersive-ar");
+      }
       clearTimeout(timeout);
       if (viewerRef.current?.renderer?.xr) {
         await viewerRef.current.renderer.xr.setSession(session);
