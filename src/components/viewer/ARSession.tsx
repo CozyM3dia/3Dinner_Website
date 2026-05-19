@@ -1,8 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { X, Loader2, Scan, AlertTriangle, RotateCcw } from "lucide-react";
 import { fitCameraToModel } from "@/lib/fit-camera";
+
+// Bypassing TypeScript JSX check for custom elements
+const ModelViewerElement = "model-viewer" as any;
 
 interface ARSessionProps {
   url: string;
@@ -21,16 +24,52 @@ type SessionState =
 export default function ARSession({ url, menuName, onClose }: ARSessionProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const uiOverlayRef = useRef<HTMLDivElement>(null);
+  const modelViewerRef = useRef<any>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const viewerRef = useRef<any>(null);
   const [sessionState, setSessionState] = useState<SessionState>("loading");
   const [progress, setProgress] = useState(0);
   const [arStarting, setArStarting] = useState(false);
 
+  const isGlb = url.toLowerCase().endsWith(".glb");
+
+  // Handle AR Status events for GLB
+  useEffect(() => {
+    if (isGlb && modelViewerRef.current) {
+      const handleArStatus = (event: any) => {
+        console.log("[ARSession] GLB AR Status:", event.detail.status);
+        // Once presenting has started, or when it ends
+        if (event.detail.status === "not-presenting") {
+          onClose();
+        }
+      };
+
+      const mv = modelViewerRef.current;
+      mv.addEventListener("ar-status", handleArStatus);
+      return () => {
+        mv.removeEventListener("ar-status", handleArStatus);
+      };
+    }
+  }, [isGlb, onClose, sessionState]);
+
   useEffect(() => {
     let mounted = true;
 
     async function init() {
+      if (isGlb) {
+        try {
+          await import("@google/model-viewer");
+          if (mounted) {
+            setProgress(100);
+            setSessionState("ready");
+          }
+        } catch (err) {
+          console.error("Failed to load model-viewer", err);
+          if (mounted) setSessionState("error");
+        }
+        return;
+      }
+
       if (!containerRef.current) return;
 
       const arSupported =
@@ -177,6 +216,18 @@ export default function ARSession({ url, menuName, onClose }: ARSessionProps) {
   }, [url]);
 
   const triggerAR = useCallback(async () => {
+    if (isGlb) {
+      if (modelViewerRef.current) {
+        try {
+          await modelViewerRef.current.activateAR();
+        } catch (err) {
+          console.error("[ARSession] GLB activateAR error:", err);
+          setSessionState("error");
+        }
+      }
+      return;
+    }
+
     if (!navigator.xr) {
       setSessionState("unsupported");
       return;
@@ -234,7 +285,7 @@ export default function ARSession({ url, menuName, onClose }: ARSessionProps) {
         setSessionState("error");
       }
     }
-  }, [sessionState]);
+  }, [sessionState, isGlb, onClose]);
 
   const retryAR = useCallback(() => {
     setSessionState("ready");
@@ -243,7 +294,27 @@ export default function ARSession({ url, menuName, onClose }: ARSessionProps) {
   return (
     <div className="fixed inset-0 z-[100] bg-black" style={{ touchAction: "none" }}>
       <style>{`#ARButton { display: none !important; }`}</style>
-      <div ref={containerRef} className="absolute inset-0" />
+      {isGlb ? (
+        <ModelViewerElement
+          ref={modelViewerRef}
+          src={url}
+          ar
+          ar-modes="webxr scene-viewer quick-look"
+          camera-controls
+          touch-action="pan-y"
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            opacity: 0.01,
+            pointerEvents: "none",
+          } as any}
+        />
+      ) : (
+        <div ref={containerRef} className="absolute inset-0" />
+      )}
 
       {/* Loading */}
       {sessionState === "loading" && (

@@ -4,6 +4,9 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { X, Loader2, RotateCcw } from "lucide-react";
 import { fitCameraToModel } from "@/lib/fit-camera";
 
+// Bypassing TypeScript JSX check for custom elements
+const ModelViewerElement = "model-viewer" as any;
+
 interface Viewer3DPageProps {
   url: string;
   menuName: string;
@@ -21,7 +24,29 @@ export default function Viewer3DPage({ url, menuName, backUrl }: Viewer3DPagePro
   const [progress, setProgress] = useState(0);
   const [errorMsg, setErrorMsg] = useState("");
 
+  const isGlb = url.toLowerCase().endsWith(".glb");
+
+  // For GLB model-viewer loading
+  useEffect(() => {
+    if (isGlb) {
+      import("@google/model-viewer")
+        .then(() => {
+          // Ready is handled by onLoad callback on the element itself
+        })
+        .catch((err) => {
+          console.error("Failed to load model-viewer", err);
+          setState("error");
+        });
+    }
+  }, [isGlb]);
+
   const initViewer = useCallback(async () => {
+    if (isGlb) {
+      setState("loading");
+      setProgress(0);
+      return;
+    }
+
     if (!containerRef.current) return;
     setState("loading");
     setProgress(0);
@@ -102,7 +127,7 @@ export default function Viewer3DPage({ url, menuName, backUrl }: Viewer3DPagePro
       setErrorMsg(err instanceof Error ? err.message : String(err));
       setState("error");
     }
-  }, [url]);
+  }, [url, isGlb]);
 
   useEffect(() => {
     initViewer();
@@ -145,7 +170,27 @@ export default function Viewer3DPage({ url, menuName, backUrl }: Viewer3DPagePro
 
       {/* Canvas */}
       <div className="relative flex-1 overflow-hidden">
-        <div ref={containerRef} className="absolute inset-0" />
+        {isGlb ? (
+          <ModelViewerElement
+            src={url}
+            ar
+            ar-modes="webxr scene-viewer quick-look"
+            camera-controls
+            touch-action="pan-y"
+            shadow-intensity="1"
+            autoplay
+            auto-rotate
+            alt={menuName}
+            onLoad={() => {
+              setProgress(100);
+              setState("ready");
+            }}
+            onError={() => setState("error")}
+            style={{ width: "100%", height: "100%", outline: "none", "--poster-color": "transparent" } as any}
+          />
+        ) : (
+          <div ref={containerRef} className="absolute inset-0" />
+        )}
 
         {/* Loading */}
         {state === "loading" && (
