@@ -53,6 +53,8 @@ export default function ARSession({ url, menuName, onClose }: ARSessionProps) {
         console.log("[ARSession] GLB AR Status:", event.detail.status);
         if (event.detail.status === "not-presenting") {
           onClose();
+        } else if (event.detail.status === "failed") {
+          setSessionState("unsupported");
         }
       };
 
@@ -235,13 +237,19 @@ export default function ARSession({ url, menuName, onClose }: ARSessionProps) {
 
   const triggerAR = useCallback(async () => {
     if (isGlb) {
-      if (modelViewerRef.current) {
-        try {
-          await modelViewerRef.current.activateAR();
-        } catch (err) {
-          console.error("[ARSession] GLB activateAR error:", err);
-          setSessionState("error");
-        }
+      const mv = modelViewerRef.current;
+      if (!mv) return;
+
+      if (!mv.canActivateAR) {
+        setSessionState("unsupported");
+        return;
+      }
+
+      try {
+        await mv.activateAR();
+      } catch (err) {
+        console.error("[ARSession] GLB activateAR error:", err);
+        setSessionState("unsupported");
       }
       return;
     }
@@ -464,12 +472,23 @@ export default function ARSession({ url, menuName, onClose }: ARSessionProps) {
                   style={{ color: "#2C1810", fontFamily: "var(--font-playfair)" }}>
                   AR Belum Didukung
                 </h3>
-                <p className="text-xs leading-relaxed" style={{ color: "#8B5E3C" }}>
-                  Browser atau perangkat ini belum mendukung WebXR AR.
-                  Gunakan <strong>Chrome di Android</strong> untuk pengalaman AR terbaik.
+                <p className="text-xs leading-relaxed mb-2" style={{ color: "#8B5E3C" }}>
+                  Perangkat ini membutuhkan <strong>Google Play Services for AR</strong> untuk menampilkan AR.
+                </p>
+                <p className="text-xs leading-relaxed" style={{ color: "#A0724A" }}>
+                  Install dari Play Store, lalu coba lagi.
                 </p>
               </div>
             </div>
+            <a
+              href="https://play.google.com/store/apps/details?id=com.google.ar.core"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full py-3 rounded-2xl text-sm font-semibold flex items-center justify-center gap-2 mb-3"
+              style={{ background: "linear-gradient(135deg, #8B5E3C, #C4956A)", color: "#FDF6EC",
+                boxShadow: "0 4px 24px rgba(139,94,60,0.45)" }}>
+              Install Google AR Services →
+            </a>
             <button onClick={onClose}
               className="w-full py-3 rounded-2xl text-sm font-semibold"
               style={{ background: "#F5E6D3", color: "#8B5E3C" }}>
