@@ -85,6 +85,50 @@ export default function ARSession({ url, menuName, onClose }: ARSessionProps) {
 
       viewer.start();
 
+      // Scale the model to real-world table-top size for AR
+      if (arSupported && viewer.splatMesh) {
+        try {
+          const THREE = await import("three");
+          const bb = viewer.splatMesh.computeBoundingBox(true);
+          if (bb) {
+            const size = new THREE.Vector3();
+            const center = new THREE.Vector3();
+            bb.getSize(size);
+            bb.getCenter(center);
+
+            // Find the largest dimension of the model
+            const maxDim = Math.max(size.x, size.y, size.z);
+
+            if (maxDim > 0) {
+              // Target real-world size: ~0.20 meters (a coffee cup / food plate)
+              const targetSize = 0.20;
+              const scaleFactor = targetSize / maxDim;
+
+              // Apply uniform scale to the splatMesh
+              viewer.splatMesh.scale.set(scaleFactor, scaleFactor, scaleFactor);
+
+              // Re-center: place the model 0.5m in front and 0.3m below the camera
+              // (roughly where a table surface would be when holding a phone)
+              viewer.splatMesh.position.set(
+                -center.x * scaleFactor,
+                -center.y * scaleFactor - 0.3,
+                -center.z * scaleFactor - 0.5
+              );
+
+              viewer.splatMesh.updateMatrixWorld(true);
+
+              console.log(
+                `[ARSession] AR scale: maxDim=${maxDim.toFixed(3)}, ` +
+                `scaleFactor=${scaleFactor.toFixed(6)}, ` +
+                `targetSize=${targetSize}m`
+              );
+            }
+          }
+        } catch (err) {
+          console.warn("[ARSession] Could not scale model for AR:", err);
+        }
+      }
+
       if (!arSupported) {
         const THREE = await import("three");
         fitCameraToModel(viewer, THREE);
