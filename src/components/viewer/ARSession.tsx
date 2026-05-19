@@ -20,6 +20,7 @@ type SessionState =
 
 export default function ARSession({ url, menuName, onClose }: ARSessionProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const uiOverlayRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const viewerRef = useRef<any>(null);
   const [sessionState, setSessionState] = useState<SessionState>("loading");
@@ -59,7 +60,10 @@ export default function ARSession({ url, menuName, onClose }: ARSessionProps) {
           ? {
               webXRMode: GS.WebXRMode.AR,
               webXRSessionInit: {
-                optionalFeatures: ["hit-test"],
+                optionalFeatures: ["hit-test", "dom-overlay"],
+                domOverlay: {
+                  root: uiOverlayRef.current!,
+                },
               },
             }
           : {}),
@@ -119,6 +123,26 @@ export default function ARSession({ url, menuName, onClose }: ARSessionProps) {
       setSessionState("unsupported");
       return;
     }
+    if (!uiOverlayRef.current) {
+      console.error("[ARSession] uiOverlayRef is null");
+      setSessionState("error");
+      return;
+    }
+
+    if (sessionState === "active") {
+      if (viewerRef.current?.renderer?.xr) {
+        const session = viewerRef.current.renderer.xr.getSession();
+        if (session) {
+          try {
+            await session.end();
+          } catch (err) {
+            console.error("[ARSession] Failed to end session:", err);
+          }
+        }
+      }
+      return;
+    }
+
     setArStarting(true);
 
     // Timeout: if requestSession never resolves/rejects after 6s, show error
@@ -128,17 +152,15 @@ export default function ARSession({ url, menuName, onClose }: ARSessionProps) {
     }, 6000);
 
     try {
-      let session;
-      try {
-        session = await navigator.xr.requestSession("immersive-ar", {
-          optionalFeatures: ["hit-test"],
-        });
-      } catch (firstErr) {
-        console.warn("[ARSession] Failed with optionalFeatures, retrying without...", firstErr);
-        session = await navigator.xr.requestSession("immersive-ar");
-      }
+      const session = await navigator.xr.requestSession("immersive-ar", {
+        optionalFeatures: ["hit-test", "dom-overlay"],
+        domOverlay: { root: uiOverlayRef.current },
+      });
+
       clearTimeout(timeout);
+      
       if (viewerRef.current?.renderer?.xr) {
+        viewerRef.current.renderer.xr.setReferenceSpaceType("local");
         await viewerRef.current.renderer.xr.setSession(session);
       }
       setArStarting(false);
@@ -154,7 +176,7 @@ export default function ARSession({ url, menuName, onClose }: ARSessionProps) {
         setSessionState("error");
       }
     }
-  }, []);
+  }, [sessionState]);
 
   const retryAR = useCallback(() => {
     setSessionState("ready");
@@ -222,17 +244,7 @@ export default function ARSession({ url, menuName, onClose }: ARSessionProps) {
         </>
       )}
 
-      {/* Active */}
-      {sessionState === "active" && (
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-[101]">
-          <button onClick={triggerAR}
-            className="px-6 py-3 rounded-full font-semibold text-sm flex items-center gap-2 active:scale-95 transition-transform"
-            style={{ background: "rgba(44,24,16,0.75)", color: "#FDF6EC", backdropFilter: "blur(8px)" }}>
-            <X size={16} />
-            Keluar AR
-          </button>
-        </div>
-      )}
+
 
       {/* Overlay blocked — specific helpful message */}
       {sessionState === "overlay_blocked" && (
@@ -333,6 +345,20 @@ export default function ARSession({ url, menuName, onClose }: ARSessionProps) {
           </button>
         </div>
       )}
+
+      {/* WebXR DOM Overlay Container */}
+      <div ref={uiOverlayRef} className="absolute inset-0 pointer-events-none z-[101]">
+        {sessionState === "active" && (
+          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-[101] pointer-events-auto">
+            <button onClick={triggerAR}
+              className="px-6 py-3 rounded-full font-semibold text-sm flex items-center gap-2 active:scale-95 transition-transform"
+              style={{ background: "rgba(44,24,16,0.75)", color: "#FDF6EC", backdropFilter: "blur(8px)" }}>
+              <X size={16} />
+              Keluar AR
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
