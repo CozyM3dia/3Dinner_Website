@@ -317,7 +317,7 @@ export default function ARSession({ url, menuName, onClose }: ARSessionProps) {
           ref={modelViewerRef}
           src={url}
           ar
-          ar-modes="webxr scene-viewer quick-look"
+          ar-modes="scene-viewer webxr quick-look"
           camera-controls
           touch-action="pan-y"
           style={{

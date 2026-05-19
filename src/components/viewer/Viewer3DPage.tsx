@@ -19,6 +19,8 @@ export default function Viewer3DPage({ url, menuName, backUrl }: Viewer3DPagePro
   const containerRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const viewerRef = useRef<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const modelViewerRef = useRef<any>(null);
   const blobUrlRef = useRef<string | null>(null);
   const [state, setState] = useState<ViewerState>("loading");
   const [progress, setProgress] = useState(0);
@@ -26,17 +28,38 @@ export default function Viewer3DPage({ url, menuName, backUrl }: Viewer3DPagePro
 
   const isGlb = url.toLowerCase().endsWith(".glb");
 
-  // For GLB model-viewer loading
+  // For GLB: attach load/error listeners via ref (onLoad prop unreliable on web components)
+  useEffect(() => {
+    if (!isGlb) return;
+
+    const mv = modelViewerRef.current;
+    if (!mv) return;
+
+    const handleLoad = () => {
+      setProgress(100);
+      setState("ready");
+    };
+    const handleError = () => setState("error");
+
+    mv.addEventListener("load", handleLoad);
+    mv.addEventListener("error", handleError);
+
+    // Model may have already loaded before effect ran (e.g. from cache)
+    if (mv.loaded) handleLoad();
+
+    return () => {
+      mv.removeEventListener("load", handleLoad);
+      mv.removeEventListener("error", handleError);
+    };
+  }, [isGlb]);
+
+  // For GLB: import model-viewer library
   useEffect(() => {
     if (isGlb) {
-      import("@google/model-viewer")
-        .then(() => {
-          // Ready is handled by onLoad callback on the element itself
-        })
-        .catch((err) => {
-          console.error("Failed to load model-viewer", err);
-          setState("error");
-        });
+      import("@google/model-viewer").catch((err) => {
+        console.error("Failed to load model-viewer", err);
+        setState("error");
+      });
     }
   }, [isGlb]);
 
@@ -172,20 +195,16 @@ export default function Viewer3DPage({ url, menuName, backUrl }: Viewer3DPagePro
       <div className="relative flex-1 overflow-hidden">
         {isGlb ? (
           <ModelViewerElement
+            ref={modelViewerRef}
             src={url}
             ar
-            ar-modes="webxr scene-viewer quick-look"
+            ar-modes="scene-viewer webxr quick-look"
             camera-controls
             touch-action="pan-y"
             shadow-intensity="1"
             autoplay
             auto-rotate
             alt={menuName}
-            onLoad={() => {
-              setProgress(100);
-              setState("ready");
-            }}
-            onError={() => setState("error")}
             style={{ width: "100%", height: "100%", outline: "none", "--poster-color": "transparent" } as any}
           />
         ) : (
