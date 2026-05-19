@@ -33,24 +33,45 @@ export default function ARSession({ url, menuName, onClose }: ARSessionProps) {
 
   const isGlb = url.toLowerCase().endsWith(".glb");
 
-  // Handle AR Status events for GLB
+  // Handle GLB load and AR status events
   useEffect(() => {
     if (isGlb && modelViewerRef.current) {
+      const mv = modelViewerRef.current;
+
+      const handleLoad = () => {
+        console.log("[ARSession] GLB loaded");
+        setProgress(100);
+        setSessionState("ready");
+      };
+
+      const handleError = (err: any) => {
+        console.error("[ARSession] GLB load error:", err);
+        setSessionState("error");
+      };
+
       const handleArStatus = (event: any) => {
         console.log("[ARSession] GLB AR Status:", event.detail.status);
-        // Once presenting has started, or when it ends
         if (event.detail.status === "not-presenting") {
           onClose();
         }
       };
 
-      const mv = modelViewerRef.current;
+      mv.addEventListener("load", handleLoad);
+      mv.addEventListener("error", handleError);
       mv.addEventListener("ar-status", handleArStatus);
+
+      // Check if it's already loaded
+      if (mv.loaded) {
+        handleLoad();
+      }
+
       return () => {
+        mv.removeEventListener("load", handleLoad);
+        mv.removeEventListener("error", handleError);
         mv.removeEventListener("ar-status", handleArStatus);
       };
     }
-  }, [isGlb, onClose, sessionState]);
+  }, [isGlb, onClose]);
 
   useEffect(() => {
     let mounted = true;
@@ -59,10 +80,7 @@ export default function ARSession({ url, menuName, onClose }: ARSessionProps) {
       if (isGlb) {
         try {
           await import("@google/model-viewer");
-          if (mounted) {
-            setProgress(100);
-            setSessionState("ready");
-          }
+          // The load listener above will transition state from loading to ready
         } catch (err) {
           console.error("Failed to load model-viewer", err);
           if (mounted) setSessionState("error");
@@ -308,8 +326,8 @@ export default function ARSession({ url, menuName, onClose }: ARSessionProps) {
             left: 0,
             width: "100%",
             height: "100%",
-            opacity: 0.01,
-            pointerEvents: "none",
+            outline: "none",
+            "--poster-color": "transparent",
           } as any}
         />
       ) : (
