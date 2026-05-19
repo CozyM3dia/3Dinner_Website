@@ -24,6 +24,7 @@ export default function ARSession({ url, menuName, onClose }: ARSessionProps) {
   const viewerRef = useRef<any>(null);
   const [sessionState, setSessionState] = useState<SessionState>("loading");
   const [progress, setProgress] = useState(0);
+  const [arStarting, setArStarting] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -114,21 +115,35 @@ export default function ARSession({ url, menuName, onClose }: ARSessionProps) {
   }, [url]);
 
   const triggerAR = useCallback(async () => {
-    if (!navigator.xr) return;
+    if (!navigator.xr) {
+      setSessionState("unsupported");
+      return;
+    }
+    setArStarting(true);
+
+    // Timeout: if requestSession never resolves/rejects after 6s, show error
+    const timeout = setTimeout(() => {
+      setArStarting(false);
+      setSessionState("overlay_blocked");
+    }, 6000);
+
     try {
       const session = await navigator.xr.requestSession("immersive-ar", {
         optionalFeatures: ["hit-test"],
       });
-      // Hand the XR session to Three.js renderer inside the GS viewer
+      clearTimeout(timeout);
       if (viewerRef.current?.renderer?.xr) {
         await viewerRef.current.renderer.xr.setSession(session);
       }
+      setArStarting(false);
     } catch (err) {
+      clearTimeout(timeout);
+      setArStarting(false);
+      console.error("[ARSession] triggerAR error:", err);
       if (err instanceof DOMException && err.name === "NotAllowedError") {
         setSessionState("overlay_blocked");
       } else {
-        console.error("[ARSession] triggerAR", err);
-        setSessionState("error");
+        setSessionState("overlay_blocked"); // assume overlay for any AR failure
       }
     }
   }, []);
@@ -185,12 +200,15 @@ export default function ARSession({ url, menuName, onClose }: ARSessionProps) {
             <p className="text-center text-xs mb-3" style={{ color: "rgba(253,246,236,0.65)" }}>
               👆 Drag untuk memutar model
             </p>
-            <button onClick={triggerAR}
+            <button onClick={triggerAR} disabled={arStarting}
               className="w-full py-4 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-transform"
               style={{ background: "linear-gradient(135deg, #8B5E3C, #C4956A)", color: "#FDF6EC",
-                boxShadow: "0 4px 24px rgba(139,94,60,0.45)" }}>
-              <Scan size={18} strokeWidth={2} />
-              Mulai AR — Arahkan ke Permukaan Datar
+                boxShadow: "0 4px 24px rgba(139,94,60,0.45)",
+                opacity: arStarting ? 0.7 : 1 }}>
+              {arStarting
+                ? <><Loader2 size={18} strokeWidth={2} className="animate-spin" />Memulai AR...</>
+                : <><Scan size={18} strokeWidth={2} />Mulai AR — Arahkan ke Permukaan Datar</>
+              }
             </button>
           </div>
         </>
