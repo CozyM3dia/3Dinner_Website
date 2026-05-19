@@ -85,61 +85,75 @@ export default function ARSession({ url, menuName, onClose }: ARSessionProps) {
 
       viewer.start();
 
-      // Scale the model to real-world table-top size for AR
-      if (arSupported && viewer.splatMesh) {
-        try {
-          const THREE = await import("three");
-          const bb = viewer.splatMesh.computeBoundingBox(true);
-          if (bb) {
-            const size = new THREE.Vector3();
-            const center = new THREE.Vector3();
-            bb.getSize(size);
-            bb.getCenter(center);
-
-            // Find the largest dimension of the model
-            const maxDim = Math.max(size.x, size.y, size.z);
-
-            if (maxDim > 0) {
-              // Target real-world size: ~0.20 meters (a coffee cup / food plate)
-              const targetSize = 0.20;
-              const scaleFactor = targetSize / maxDim;
-
-              // Apply uniform scale to the splatMesh
-              viewer.splatMesh.scale.set(scaleFactor, scaleFactor, scaleFactor);
-
-              // Re-center: place the model 0.5m in front and 0.3m below the camera
-              // (roughly where a table surface would be when holding a phone)
-              viewer.splatMesh.position.set(
-                -center.x * scaleFactor,
-                -center.y * scaleFactor - 0.3,
-                -center.z * scaleFactor - 0.5
-              );
-
-              viewer.splatMesh.updateMatrixWorld(true);
-
-              console.log(
-                `[ARSession] AR scale: maxDim=${maxDim.toFixed(3)}, ` +
-                `scaleFactor=${scaleFactor.toFixed(6)}, ` +
-                `targetSize=${targetSize}m`
-              );
-            }
-          }
-        } catch (err) {
-          console.warn("[ARSession] Could not scale model for AR:", err);
-        }
-      }
-
       if (!arSupported) {
         const THREE = await import("three");
         fitCameraToModel(viewer, THREE);
       }
 
       if (arSupported && viewer.renderer?.xr) {
-        viewer.renderer.xr.addEventListener("sessionstart", () => {
+        // Save original transform so we can restore after AR ends
+        let savedScale: [number, number, number] | null = null;
+        let savedPosition: [number, number, number] | null = null;
+
+        viewer.renderer.xr.addEventListener("sessionstart", async () => {
           if (mounted) setSessionState("active");
+
+          // Scale model to real-world table-top size only when AR starts
+          const mesh = viewer.splatMesh;
+          if (!mesh) return;
+          try {
+            const THREE = await import("three");
+
+            // Save original transform before modifying
+            savedScale = [mesh.scale.x, mesh.scale.y, mesh.scale.z];
+            savedPosition = [mesh.position.x, mesh.position.y, mesh.position.z];
+
+            const bb = mesh.computeBoundingBox(true);
+            if (bb) {
+              const size = new THREE.Vector3();
+              const center = new THREE.Vector3();
+              bb.getSize(size);
+              bb.getCenter(center);
+
+              const maxDim = Math.max(size.x, size.y, size.z);
+              if (maxDim > 0) {
+                // Target: ~0.20 meters (realistic coffee cup / food plate)
+                const targetSize = 0.20;
+                const scaleFactor = targetSize / maxDim;
+
+                mesh.scale.set(scaleFactor, scaleFactor, scaleFactor);
+
+                // Place 0.5m in front, 0.3m below camera (table surface)
+                mesh.position.set(
+                  -center.x * scaleFactor,
+                  -center.y * scaleFactor - 0.3,
+                  -center.z * scaleFactor - 0.5
+                );
+                mesh.updateMatrixWorld(true);
+
+                console.log(
+                  `[ARSession] AR scale applied: maxDim=${maxDim.toFixed(3)}, ` +
+                  `factor=${scaleFactor.toFixed(6)}, target=${targetSize}m`
+                );
+              }
+            }
+          } catch (err) {
+            console.warn("[ARSession] Could not scale model for AR:", err);
+          }
         });
+
         viewer.renderer.xr.addEventListener("sessionend", () => {
           if (mounted) setSessionState("ready");
+
+          // Restore original transform when AR ends
+          const mesh = viewer.splatMesh;
+          if (mesh && savedScale && savedPosition) {
+            mesh.scale.set(savedScale[0], savedScale[1], savedScale[2]);
+            mesh.position.set(savedPosition[0], savedPosition[1], savedPosition[2]);
+            mesh.updateMatrixWorld(true);
+            savedScale = null;
+            savedPosition = null;
+          }
         });
       }
 
