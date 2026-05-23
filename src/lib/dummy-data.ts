@@ -114,7 +114,7 @@ export const DUMMY_MENUS: Menu[] = [
     harga_menu: 45000,
     description_menu:
       "Model 3D robot dalam format GLB untuk mencoba fitur Model Viewer AR universal di iOS dan Android.",
-    model_3d_url: "/models/pixel-robot-original.glb",
+    model_3d_url: "/models/pixel-robot-15cm.glb",
     redirect_link: "https://order.senjacafe.id/menu/pixel-robot",
     created_at: "2024-01-01T00:00:00Z",
   },
